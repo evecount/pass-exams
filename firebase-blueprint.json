@@ -1,0 +1,118 @@
+{
+  "entities": {
+    "User": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "User",
+      "type": "object",
+      "description": "Represents a user of the application. Can be a student, teacher, parent, or institutional admin.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the User entity (Firebase Auth UID)."
+        },
+        "email": {
+          "type": "string",
+          "description": "The user's email address.",
+          "format": "email"
+        },
+        "role": {
+          "type": "string",
+          "description": "The role of the user, determining their permissions.",
+          "enum": ["student", "teacher", "parent", "admin"]
+        },
+        "institutionId": {
+          "type": "string",
+          "description": "Optional reference to the institution the user belongs to."
+        }
+      },
+      "required": ["id", "email", "role"]
+    },
+    "Institution": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Institution",
+      "type": "object",
+      "description": "Represents an educational institution or organization.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the Institution entity."
+        },
+        "name": {
+          "type": "string",
+          "description": "The name of the institution."
+        },
+        "adminIds": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "An array of User IDs who are administrators for this institution."
+        }
+      },
+      "required": ["id", "name"]
+    },
+    "Exam": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Exam",
+      "type": "object",
+      "description": "Represents an exam or quiz created by a teacher or parent.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the Exam entity."
+        },
+        "creatorId": {
+          "type": "string",
+          "description": "Reference to the User who created the exam."
+        },
+        "institutionId": {
+          "type": "string",
+          "description": "Reference to the Institution this exam belongs to, if applicable."
+        },
+        "title": {
+          "type": "string",
+          "description": "The title of the exam."
+        }
+      },
+      "required": ["id", "creatorId", "title"]
+    }
+  },
+  "auth": {
+    "providers": ["password", "anonymous", "google.com"]
+  },
+  "firestore": {
+    "structure": [
+      {
+        "path": "/users/{userId}",
+        "definition": {
+          "entityName": "User",
+          "schema": { "$ref": "#/backend/entities/User" },
+          "description": "Stores user profiles. Includes roles and institutional affiliation.",
+          "params": [{ "name": "userId", "description": "The unique identifier for the user." }]
+        }
+      },
+      {
+        "path": "/institutions/{institutionId}",
+        "definition": {
+          "entityName": "Institution",
+          "schema": { "$ref": "#/backend/entities/Institution" },
+          "description": "Top-level collection for all institutions using the platform.",
+          "params": [{ "name": "institutionId", "description": "The unique identifier for the institution." }]
+        }
+      },
+      {
+        "path": "/institutions/{institutionId}/exams/{examId}",
+        "definition": {
+          "entityName": "Exam",
+          "schema": { "$ref": "#/backend/entities/Exam" },
+          "description": "Stores exams created by teachers within a specific institution.",
+          "params": [
+            { "name": "institutionId", "description": "The unique identifier for the institution." },
+            { "name": "examId", "description": "The unique identifier for the exam." }
+          ]
+        }
+      }
+    ],
+    "reasoning": "The new structure introduces a top-level `institutions` collection to support multi-tenancy. This isolates data between different organizations. The `users` collection now includes a `role` and an `institutionId` to manage permissions. Exams are now nested under institutions, enforcing data separation. This model supports both large institutional clients and individual SaaS users (who can be treated as their own 'institution' or operate in a global space)."
+  }
+}

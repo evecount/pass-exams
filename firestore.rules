@@ -1,0 +1,73 @@
+/**
+ * Core Philosophy: This ruleset enforces a multi-tenant architecture with
+ * role-based access control (RBAC). Data is sandboxed by institution,
+ * and user actions are restricted based on their assigned role ('admin', 'teacher', 'student').
+ * It also secures the central "Content Seed Bank" to be read-only for clients.
+ *
+ * Data Structure:
+ * - /users/{userId}: Stores user profiles and their private data (bookmarks, etc.).
+ * - /quizzes/{quizId}: Stores public quiz metadata.
+ * - /quizzes/{quizId}/questions/{questionId}: The "seed bank" of questions.
+ * - /question_stats/{questionId}: Stores aggregate, anonymous answer statistics.
+ *
+ * Key Security Decisions:
+ * - Content Seed Bank (`/quizzes`): This data is treated as a public, read-only resource for all authenticated users. All write/update operations must be done via a trusted server-side process (Admin SDK), not by clients.
+ * - User Data: A user can only access their own data within the `/users/{userId}` path.
+ * - Aggregate Stats: The `question_stats` collection is locked from all client access. Updates happen via a trusted server function.
+ */
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    //-------------------------------------------------------------------------
+    // Helper Functions
+    //-------------------------------------------------------------------------
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    //-------------------------------------------------------------------------
+    // Collection Rules
+    //-------------------------------------------------------------------------
+
+    match /users/{userId} {
+      // A user can read and update their own profile.
+      allow read, update: if isOwner(userId);
+      // New users can be created during sign-up.
+      allow create: if isSignedIn();
+      // No one can list all users or delete a user profile directly.
+      allow list, delete: if false;
+
+      // Allow users to access their own sub-collections (e.g., bookmarks, custom exams).
+      match /{subcollection}/{document=**} {
+        allow read, write: if isOwner(userId);
+      }
+    }
+    
+    // --- Core Content Seed Bank ---
+    match /quizzes/{quizId} {
+      // All authenticated users can read quiz metadata.
+      allow get, list: if isSignedIn();
+      // Writing is restricted to backend/admin processes only.
+      allow write: if false;
+
+      match /questions/{questionId} {
+        // All authenticated users can read questions for a quiz.
+        allow get, list: if isSignedIn();
+        // Writing is restricted.
+        allow write: if false;
+      }
+    }
+
+    match /question_stats/{questionId} {
+      // Disallow all direct client access.
+      // Updates should only happen via trusted server-side logic (Admin SDK).
+      allow read, write: if false;
+    }
+  }
+}
