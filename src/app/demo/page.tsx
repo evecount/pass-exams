@@ -9,7 +9,7 @@ import { Bot, FileCheck2, Loader2, Sparkles, Wand2, ChevronRight, Printer, Book,
 import { cn } from '@/lib/utils';
 import { Textarea } from '@/components/ui/textarea';
 import { generateQuestionsFromText, saveGeneratedQuiz } from '@/lib/ai-actions';
-import type { GenerateQuestionsFromTextInput } from '@/ai/flows/generate-questions-from-text-flow';
+type GenerateQuestionsFromTextInput = { text: string };
 import { useToast } from '@/hooks/use-toast';
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { Label } from "@/components/ui/label"
